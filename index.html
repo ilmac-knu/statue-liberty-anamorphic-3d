@@ -1,0 +1,26 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>자유의 여신상 | Anamorphic 3D</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0d1928;color:#f5f8ff;font-family:system-ui,'Malgun Gothic',sans-serif;text-align:center}header{padding:18px 12px 8px}h1{font-size:clamp(20px,3.5vw,34px);margin:0 0 6px}p{color:#a9c7e8;margin:0 0 12px}.stage{position:relative;width:min(1100px,98vw);margin:0 auto;background:radial-gradient(ellipse at 50% 38%,#254461,#0b1828 72%);border:1px solid #365773;border-radius:15px;overflow:hidden;touch-action:manipulation}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:1487/880}.controls{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;padding:14px}.controls button{background:#285579;border:1px solid #85accb;border-radius:10px;color:white;padding:13px 18px;font-weight:700;font-size:16px;cursor:pointer}.controls button:disabled{opacity:.5}.note{max-width:850px;margin:0 auto 24px;padding:0 14px;color:#b5cbe2;font-size:13px;line-height:1.7}.status{position:absolute;top:12px;left:12px;background:#102337d9;border-radius:8px;padding:7px 11px;font-size:13px;pointer-events:none}@media(max-width:600px){header{padding:12px 8px 4px}.controls{gap:8px}.controls button{flex:1 1 42%;font-size:15px;padding:13px 8px}.stage{width:100%;border-radius:10px}}
+</style></head><body><header><h1>🗽 자유의 여신상 · Anamorphic 3D</h1><p>화면 밖으로 솟아오르는 자유의 여신상 · 황금 횃불 돌출 애니메이션</p></header><main><section class="stage"><canvas id="scene" width="1487" height="880" aria-label="뉴욕 항구와 자유의 여신상 애니메이션"></canvas><div class="status" id="status">이미지 준비 중…</div></section><div class="controls"><button id="play" disabled>▶ 돌출 애니메이션 시작</button><button id="replay" disabled>↻ 다시 보기</button><button id="pause" disabled>⏸ 일시정지</button></div><div class="note">① 여신상이 스마트폰 화면에서 등장 → ② 화면 테두리를 넘어 확대 → ③ 횃불과 오른팔이 관람객 앞으로 돌출됩니다.<br>카메라나 GLB 없이 PNG 레이어를 이용한 2.5D 원근 착시 연출입니다.</div></main>
+<script>
+'use strict';const canvas=document.getElementById('scene'),ctx=canvas.getContext('2d'),status=document.getElementById('status');const btnPlay=document.getElementById('play'),btnReplay=document.getElementById('replay'),btnPause=document.getElementById('pause');const W=1487,H=880;const paths={phone:'liberty-background.png',statue:'liberty-statue-transparent.png',torch:'liberty-torch-transparent.png'};const imgs={};let ready=false,elapsed=0,last=0,playing=false,finished=false,raf=0;const duration=8500;
+const clamp=x=>Math.max(0,Math.min(1,x)),ease=x=>{x=clamp(x);return x*x*(3-2*x)},mix=(a,b,t)=>a+(b-a)*t;
+function load(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error(src));im.src=src+'?v=1';});}
+function sprite(im,x,y,w,h,rotation=0,opacity=1){ctx.save();ctx.globalAlpha=opacity;ctx.translate(x,y);ctx.rotate(rotation);ctx.drawImage(im,-w/2,-h/2,w,h);ctx.restore();}
+function render(){ctx.clearRect(0,0,W,H);if(!ready)return;
+// 스마트폰 이미지 원본의 투명 영역을 유지하여 표시
+ctx.drawImage(imgs.phone,0,0,W,H);
+const rise=ease(elapsed/3700),forward=ease((elapsed-2900)/2800),reach=ease((elapsed-5100)/2600);
+// 여신상: 시작에는 화면 안쪽, 진행하면서 화면 밖으로 크게 솟아오름
+const statueW=mix(460,980,rise),statueH=statueW*1024/1536;
+const sx=mix(630,590,rise)-forward*24,sy=mix(590,440,rise)-forward*15;
+// 움직이는 그림자: 깊이감 보강
+ctx.save();ctx.globalAlpha=.26*rise;ctx.fillStyle='#071722';ctx.beginPath();ctx.ellipse(480,685,125+rise*70,17+rise*8,-.18,0,Math.PI*2);ctx.fill();ctx.restore();
+sprite(imgs.statue,sx,sy,statueW,statueH,-forward*.025,1);
+// 별도 횃불 레이어는 확대하며 관람객 방향으로 이동: 2D 합성 기반 착시
+if(reach>0){const tw=mix(390,880,reach),th=tw*1024/1536;ctx.save();ctx.shadowColor='#030b13';ctx.shadowBlur=25*reach;ctx.shadowOffsetX=18*reach;ctx.shadowOffsetY=23*reach;sprite(imgs.torch,mix(480,390,reach),mix(255,210,reach),tw,th,mix(-.05,-.13,reach),reach);ctx.restore();}
+if(!playing&&!finished&&elapsed===0)status.textContent='▶ 버튼을 눌러 애니메이션을 시작하세요';else if(finished)status.textContent='완료 · 다시 보기로 재생';else status.textContent=elapsed<3000?'① 화면 속 자유의 여신상 등장':elapsed<5500?'② 스마트폰 테두리 밖으로 돌출':'③ 황금 횃불을 관람객 앞으로!';}
+function tick(t){if(!playing)return;if(!last)last=t;elapsed=Math.min(duration,elapsed+(t-last));last=t;render();if(elapsed>=duration){playing=false;finished=true;btnPause.disabled=true;btnPause.textContent='⏸ 일시정지';render();return;}raf=requestAnimationFrame(tick)}
+function play(reset){if(!ready)return;cancelAnimationFrame(raf);if(reset){elapsed=0;finished=false;}if(finished){elapsed=0;finished=false;}playing=true;last=0;btnPause.disabled=false;btnPause.textContent='⏸ 일시정지';raf=requestAnimationFrame(tick)}
+btnPlay.onclick=()=>play(true);btnReplay.onclick=()=>play(true);btnPause.onclick=()=>{if(playing){playing=false;cancelAnimationFrame(raf);btnPause.textContent='▶ 계속 보기';status.textContent='일시정지';}else{play(false)}};
+Promise.all(Object.entries(paths).map(async([k,v])=>{imgs[k]=await load(v)})).then(()=>{ready=true;btnPlay.disabled=false;btnReplay.disabled=false;render()}).catch(e=>{status.textContent='이미지 로딩 실패: '+e.message+' · 파일명과 업로드 위치를 확인하세요';console.error(e)});
+</script></body></html>
